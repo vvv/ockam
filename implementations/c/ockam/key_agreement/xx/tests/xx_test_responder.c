@@ -18,13 +18,13 @@ extern bool scripted_xx;
 ockam_error_t xx_test_responder_prologue(key_establishment_xx* xx)
 {
   ockam_error_t                   error             = OCKAM_ERROR_NONE;
-  ockam_vault_secret_attributes_t secret_attributes = { KEY_SIZE,
+  ockam_vault_secret_attributes_t secret_attributes = { PRIVATE_KEY_SIZE,
                                                         OCKAM_VAULT_SECRET_TYPE_CURVE25519_PRIVATEKEY,
                                                         OCKAM_VAULT_SECRET_PURPOSE_KEY_AGREEMENT,
                                                         OCKAM_VAULT_SECRET_EPHEMERAL };
-  uint8_t                         key[KEY_SIZE];
+  uint8_t                         key[PRIVATE_KEY_SIZE];
   size_t                          key_bytes;
-  uint8_t                         ck[KEY_SIZE];
+  uint8_t                         ck[SYMMETRIC_KEY_SIZE];
 
   // 1. Pick a static 25519 keypair for this xx and set it to s
   string_to_hex((uint8_t*) RESPONDER_STATIC, key, &key_bytes);
@@ -34,7 +34,7 @@ ockam_error_t xx_test_responder_prologue(key_establishment_xx* xx)
     goto exit;
   }
 
-  error = ockam_vault_secret_publickey_get(xx->vault, &xx->s_secret, xx->s, KEY_SIZE, &key_bytes);
+  error = ockam_vault_secret_publickey_get(xx->vault, &xx->s_secret, xx->s, P256_PUBLIC_KEY_SIZE, &key_bytes);
   if (error) {
     ockam_log_error("xx_test_responder_prologue: %x", error);
     goto exit;
@@ -49,7 +49,7 @@ ockam_error_t xx_test_responder_prologue(key_establishment_xx* xx)
     goto exit;
   }
 
-  error = ockam_vault_secret_publickey_get(xx->vault, &xx->e_secret, xx->e, KEY_SIZE, &key_bytes);
+  error = ockam_vault_secret_publickey_get(xx->vault, &xx->e_secret, xx->e, P256_PUBLIC_KEY_SIZE, &key_bytes);
   if (error) {
     ockam_log_error("xx_test_responder_prologue: %x", error);
     goto exit;
@@ -62,10 +62,10 @@ ockam_error_t xx_test_responder_prologue(key_establishment_xx* xx)
   // 4. Set h and ck to 'Noise_XX_25519_AESGCM_SHA256'
   memset(xx->h, 0, SHA256_SIZE);
   memcpy(xx->h, PROTOCOL_NAME, PROTOCOL_NAME_SIZE);
-  memset(ck, 0, KEY_SIZE);
+  memset(ck, 0, SYMMETRIC_KEY_SIZE);
   memcpy(ck, PROTOCOL_NAME, PROTOCOL_NAME_SIZE);
   secret_attributes.type = OCKAM_VAULT_SECRET_TYPE_BUFFER;
-  error                  = ockam_vault_secret_import(xx->vault, &xx->ck_secret, &secret_attributes, ck, KEY_SIZE);
+  error                  = ockam_vault_secret_import(xx->vault, &xx->ck_secret, &secret_attributes, ck, SYMMETRIC_KEY_SIZE);
   if (error) {
     ockam_log_error("xx_test_responder_prologue: %x", error);
     goto exit;

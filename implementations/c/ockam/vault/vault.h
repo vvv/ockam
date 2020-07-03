@@ -20,7 +20,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define OCKAM_VAULT_SHARED_SECRET_LENGTH        32u
+#define OCKAM_VAULT_SHARED_SECRET_LENGTH        65u
 #define OCKAM_VAULT_SHA256_DIGEST_LENGTH        32u
 #define OCKAM_VAULT_AES128_KEY_LENGTH           16u
 #define OCKAM_VAULT_AES256_KEY_LENGTH           32u

@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdio.h>
 
 #include "ockam/error.h"
 #include "ockam/key_agreement/impl.h"
@@ -74,9 +75,9 @@ xx_initiator_m1_make(key_establishment_xx* xx, uint8_t* p_send_buffer, size_t bu
   uint16_t      offset = 0;
 
   // Write e to outgoing buffer
-  // h = SHA256( h || e.PublicKey )
-  ockam_memory_copy(gp_ockam_key_memory, p_send_buffer, xx->e, KEY_SIZE);
-  offset += KEY_SIZE;
+  // h = SHA256(h || e.PublicKey)
+  ockam_memory_copy(gp_ockam_key_memory, p_send_buffer, xx->e, P256_PUBLIC_KEY_SIZE);
+  offset += P256_PUBLIC_KEY_SIZE;
 
   mix_hash(xx, xx->e, sizeof(xx->e));
 
@@ -99,18 +100,19 @@ ockam_error_t xx_initiator_m2_process(key_establishment_xx* xx, uint8_t* p_recv,
   // message buffer, parse it as a public
   // key, set it to re
   // h = SHA256(h || re)
-  ockam_memory_copy(gp_ockam_key_memory, xx->re, p_recv, KEY_SIZE);
-  offset += KEY_SIZE;
-  mix_hash(xx, xx->re, KEY_SIZE);
+  // FIXME: Check size
+  ockam_memory_copy(gp_ockam_key_memory, xx->re, p_recv, P256_PUBLIC_KEY_SIZE);
+  offset += P256_PUBLIC_KEY_SIZE;
+  mix_hash(xx, xx->re, sizeof(xx->re));
 
   // 2. ck, k = HKDF(ck, DH(e, re), 2)
   // n = 0
   error = hkdf_dh(xx, &xx->ck_secret, &xx->e_secret, xx->re, sizeof(xx->re), &xx->ck_secret, &xx->k_secret);
   if (error) goto exit;
 
-  error = ockam_vault_secret_type_set(xx->vault, &xx->k_secret, OCKAM_VAULT_SECRET_TYPE_AES256_KEY);
+  error = ockam_vault_secret_type_set(xx->vault, &xx->k_secret, OCKAM_VAULT_SECRET_TYPE_AES128_KEY);
   if (error) goto exit;
-  error = ockam_vault_secret_type_set(xx->vault, &xx->ck_secret, OCKAM_VAULT_SECRET_TYPE_AES256_KEY);
+  error = ockam_vault_secret_type_set(xx->vault, &xx->ck_secret, OCKAM_VAULT_SECRET_TYPE_BUFFER);
   if (error) goto exit;
   xx->nonce = 0;
 
@@ -125,16 +127,16 @@ ockam_error_t xx_initiator_m2_process(key_establishment_xx* xx, uint8_t* p_recv,
                                            xx->h,
                                            sizeof(xx->h),
                                            p_recv + offset,
-                                           KEY_SIZE + TAG_SIZE,
+                                           P256_PUBLIC_KEY_SIZE + TAG_SIZE,
                                            clear_text,
                                            sizeof(clear_text),
                                            &clear_text_length);
   if (error) goto exit;
 
   xx->nonce += 1;
-  ockam_memory_copy(gp_ockam_key_memory, xx->rs, clear_text, KEY_SIZE);
-  mix_hash(xx, p_recv + offset, KEY_SIZE + TAG_SIZE);
-  offset += KEY_SIZE + TAG_SIZE;
+  ockam_memory_copy(gp_ockam_key_memory, xx->rs, clear_text, P256_PUBLIC_KEY_SIZE);
+  mix_hash(xx, p_recv + offset, P256_PUBLIC_KEY_SIZE + TAG_SIZE);
+  offset += P256_PUBLIC_KEY_SIZE + TAG_SIZE;
 
   // 4. ck, k = HKDF(ck, DH(e, rs), 2)
   // n = 0
@@ -142,9 +144,9 @@ ockam_error_t xx_initiator_m2_process(key_establishment_xx* xx, uint8_t* p_recv,
   error = hkdf_dh(xx, &xx->ck_secret, &xx->e_secret, xx->rs, sizeof(xx->rs), &xx->ck_secret, &xx->k_secret);
   if (error) goto exit;
 
-  error = ockam_vault_secret_type_set(xx->vault, &xx->k_secret, OCKAM_VAULT_SECRET_TYPE_AES256_KEY);
+  error = ockam_vault_secret_type_set(xx->vault, &xx->k_secret, OCKAM_VAULT_SECRET_TYPE_AES128_KEY);
   if (error) goto exit;
-  error = ockam_vault_secret_type_set(xx->vault, &xx->ck_secret, OCKAM_VAULT_SECRET_TYPE_AES256_KEY);
+  error = ockam_vault_secret_type_set(xx->vault, &xx->ck_secret, OCKAM_VAULT_SECRET_TYPE_BUFFER);
   if (error) goto exit;
 
   xx->nonce = 0;
@@ -166,10 +168,9 @@ exit:
 ockam_error_t xx_initiator_m3_make(key_establishment_xx* xx, uint8_t* p_msg, size_t* p_msg_size)
 {
   ockam_error_t error = OCKAM_ERROR_NONE;
-  uint8_t       cipher_and_tag[KEY_SIZE + TAG_SIZE];
+  uint8_t       cipher_and_tag[P256_PUBLIC_KEY_SIZE + TAG_SIZE];
   size_t        cipher_and_tag_length = 0;
-  uint16_t      offset                = 0;
-  uint8_t       vector[VECTOR_SIZE];
+  u_int16_t     offset                = 0;
 
   // 1. c = ENCRYPT(k, n++, h, s.PublicKey)
   // h =  SHA256(h || c),
@@ -182,16 +183,16 @@ ockam_error_t xx_initiator_m3_make(key_establishment_xx* xx, uint8_t* p_msg, siz
                                            xx->h,
                                            SHA256_SIZE,
                                            xx->s,
-                                           KEY_SIZE,
+                                           P256_PUBLIC_KEY_SIZE,
                                            cipher_and_tag,
-                                           KEY_SIZE + TAG_SIZE,
+                                           P256_PUBLIC_KEY_SIZE + TAG_SIZE,
                                            &cipher_and_tag_length);
   if (error) goto exit;
 
   xx->nonce += 1;
-  ockam_memory_copy(gp_ockam_key_memory, p_msg, cipher_and_tag, KEY_SIZE + TAG_SIZE);
-  offset += KEY_SIZE + TAG_SIZE;
-  mix_hash(xx, p_msg, KEY_SIZE + TAG_SIZE);
+  ockam_memory_copy(gp_ockam_key_memory, p_msg, cipher_and_tag, P256_PUBLIC_KEY_SIZE + TAG_SIZE);
+  offset += cipher_and_tag_length;
+  mix_hash(xx, p_msg, P256_PUBLIC_KEY_SIZE + TAG_SIZE);
 
   // 2. ck, k = HKDF(ck, DH(s, re), 2)
   // n = 0
@@ -216,7 +217,7 @@ ockam_error_t xx_initiator_m3_make(key_establishment_xx* xx, uint8_t* p_msg, siz
                                            NULL,
                                            0,
                                            cipher_and_tag,
-                                           KEY_SIZE + TAG_SIZE,
+                                           P256_PUBLIC_KEY_SIZE + TAG_SIZE,
                                            &cipher_and_tag_length);
   if (error) goto exit;
 

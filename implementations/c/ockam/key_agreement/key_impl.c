@@ -47,7 +47,7 @@ ockam_error_t ockam_key_encrypt(
     error = KEYAGREEMENT_ERROR_PARAMETER;
     goto exit;
   }
-  if (!payload_size || !msg_size) {
+  if (!payload_size || !msg_length) {
     error = KEYAGREEMENT_ERROR_PARAMETER;
     goto exit;
   }

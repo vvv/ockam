@@ -135,12 +135,12 @@ exit:
 ockam_error_t key_agreement_prologue_xx(key_establishment_xx* xx)
 {
   ockam_error_t                   error             = OCKAM_ERROR_NONE;
-  ockam_vault_secret_attributes_t secret_attributes = { KEY_SIZE,
-                                                        OCKAM_VAULT_SECRET_TYPE_CURVE25519_PRIVATEKEY,
+  ockam_vault_secret_attributes_t secret_attributes = { PRIVATE_KEY_SIZE,
+                                                        OCKAM_VAULT_SECRET_TYPE_P256_PRIVATEKEY,
                                                         OCKAM_VAULT_SECRET_PURPOSE_KEY_AGREEMENT,
                                                         OCKAM_VAULT_SECRET_EPHEMERAL };
   size_t                          key_size          = 0;
-  uint8_t                         ck[KEY_SIZE];
+  uint8_t                         ck[SYMMETRIC_KEY_SIZE];
 
   // 1. Generate a static 25519 keypair for this handshake and set it to s
   error = ockam_vault_secret_generate(xx->vault, &xx->s_secret, &secret_attributes);
@@ -161,15 +161,15 @@ ockam_error_t key_agreement_prologue_xx(key_establishment_xx* xx)
 
   // 3. Set k to empty, Set n to 0
   xx->nonce = 0;
-  ockam_memory_set(gp_ockam_key_memory, xx->k, 0, KEY_SIZE);
+  ockam_memory_set(gp_ockam_key_memory, xx->k, 0, SYMMETRIC_KEY_SIZE);
 
   // 4. Set h and ck to 'Noise_XX_25519_AESGCM_SHA256'
   ockam_memory_set(gp_ockam_key_memory, xx->h, 0, SHA256_SIZE);
   ockam_memory_copy(gp_ockam_key_memory, xx->h, PROTOCOL_NAME, PROTOCOL_NAME_SIZE);
-  ockam_memory_set(gp_ockam_key_memory, ck, 0, KEY_SIZE);
+  ockam_memory_set(gp_ockam_key_memory, ck, 0, SYMMETRIC_KEY_SIZE);
   ockam_memory_copy(gp_ockam_key_memory, ck, PROTOCOL_NAME, PROTOCOL_NAME_SIZE);
   secret_attributes.type = OCKAM_VAULT_SECRET_TYPE_BUFFER;
-  error                  = ockam_vault_secret_import(xx->vault, &xx->ck_secret, &secret_attributes, ck, KEY_SIZE);
+  error                  = ockam_vault_secret_import(xx->vault, &xx->ck_secret, &secret_attributes, ck, SYMMETRIC_KEY_SIZE);
   if (error) goto exit;
 
   // 5. h = SHA256(h || prologue),
@@ -184,7 +184,7 @@ exit:
 /*------------------------------------------------------------------------------------------------------*
  *          UTILITY FUNCTIONS
  *------------------------------------------------------------------------------------------------------*/
-void print_uint8_str(uint8_t* p, uint16_t size, char* msg)
+void print_uint8_str(const uint8_t* p, uint16_t size, const char* msg)
 {
   printf("\n%s %d bytes: \n", msg, size);
   for (int i = 0; i < size; ++i) printf("%0.2x", *p++);
@@ -227,12 +227,12 @@ exit:
   return error;
 }
 
-void string_to_hex(uint8_t* hexstring, uint8_t* val, size_t* p_bytes)
+void string_to_hex(const uint8_t* hexstring, uint8_t* val, size_t* p_bytes)
 {
-  const char* pos   = (char*) hexstring;
+  const char* pos   = (const char*) hexstring;
   uint32_t    bytes = 0;
 
-  for (size_t count = 0; count < (strlen((char*) hexstring) / 2); count++) {
+  for (size_t count = 0; count < (strlen((const  char*) hexstring) / 2); count++) {
     sscanf(pos, "%2hhx", &val[count]);
     pos += 2;
     bytes += 1;
@@ -240,6 +240,7 @@ void string_to_hex(uint8_t* hexstring, uint8_t* val, size_t* p_bytes)
   if (NULL != p_bytes) *p_bytes = bytes;
 }
 
+// FIXME
 void mix_hash(key_establishment_xx* xx, uint8_t* p_bytes, uint16_t b_length)
 {
   ockam_error_t error;

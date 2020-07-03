@@ -567,6 +567,7 @@ ockam_error_t vault_default_secret_ec_create(ockam_vault_t*                     
   case OCKAM_VAULT_SECRET_TYPE_P256_PRIVATEKEY:
     secret_ctx->ec    = &br_ec_p256_m31;
     secret_ctx->curve = BR_EC_secp256r1;
+    break;
 
   case OCKAM_VAULT_SECRET_TYPE_CURVE25519_PRIVATEKEY:
     secret_ctx->ec    = &br_ec_c25519_i31;
@@ -576,9 +577,9 @@ ockam_error_t vault_default_secret_ec_create(ockam_vault_t*                     
   default:
     error = OCKAM_VAULT_ERROR_INVALID_PARAM;
     goto exit;
-    break;
   }
 
+  // FIXME
   size = br_ec_keygen(&(br_random_ctx->vtable), /* Call keygen without a key structure or buffer to     */
                       secret_ctx->ec,           /* calculate the size of the private key                */
                       0,
@@ -1057,7 +1058,7 @@ ockam_error_t vault_default_ecdh(ockam_vault_t*        vault,
   ockam_error_t                   error          = OCKAM_ERROR_NONE;
   int                             ret            = 0;
   const uint8_t*                  publickey      = 0;
-  ockam_vault_default_context_t*   ctx            = 0;
+  ockam_vault_default_context_t*  ctx            = 0;
   vault_default_secret_ec_ctx_t*  secret_ec_ctx  = 0;
   vault_default_secret_key_ctx_t* secret_key_ctx = 0;
   size_t                          xoff           = 0;
@@ -1106,6 +1107,9 @@ ockam_error_t vault_default_ecdh(ockam_vault_t*        vault,
                                secret_ec_ctx->private_key,
                                secret_ec_ctx->private_key_size,
                                secret_ec_ctx->curve);
+
+  // FIXME: for P256 should use only x-coordinate from result
+
   if (ret != 1) {
     error = OCKAM_VAULT_ERROR_ECDH_FAIL;
     goto exit;
@@ -1228,7 +1232,7 @@ ockam_error_t vault_default_hkdf_sha256(ockam_vault_t*        vault,
 
   {
     uint8_t                         i          = 0;
-    ockam_vault_secret_attributes_t attributes = { .length      = OCKAM_VAULT_SHA256_DIGEST_LENGTH,
+    ockam_vault_secret_attributes_t attributes = { .length      = OCKAM_VAULT_SHA256_DIGEST_LENGTH, // FIXME
                                                    .type        = OCKAM_VAULT_SECRET_TYPE_BUFFER,
                                                    .purpose     = OCKAM_VAULT_SECRET_PURPOSE_KEY_AGREEMENT,
                                                    .persistence = OCKAM_VAULT_SECRET_EPHEMERAL };
@@ -1357,6 +1361,7 @@ ockam_error_t vault_default_aead_aes_gcm(ockam_vault_t*        vault,
   }
 
   if (encrypt) {
+    // FIXME
     if (output_size < input_length + OCKAM_VAULT_AEAD_AES_GCM_TAG_LENGTH) {
       error = OCKAM_VAULT_ERROR_INVALID_SIZE;
       goto exit;

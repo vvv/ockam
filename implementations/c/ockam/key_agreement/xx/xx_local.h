@@ -9,8 +9,8 @@
 #include "ockam/key_agreement/impl.h"
 #include "ockam/key_agreement.h"
 
-#define PROTOCOL_NAME        "Noise_XX_25519_AESGCM_SHA256"
-#define PROTOCOL_NAME_SIZE   28
+#define PROTOCOL_NAME        "XX_P256_AES"
+#define PROTOCOL_NAME_SIZE   11
 #define MAX_XX_TRANSMIT_SIZE 1028
 #define TAG_SIZE             16
 #define VECTOR_SIZE          12
@@ -32,22 +32,22 @@ typedef struct ockam_xx_key ockam_xx_key_t;
 
 typedef struct {
   uint16_t             nonce;
-  uint8_t              s[KEY_SIZE];
+  uint8_t              s[P256_PUBLIC_KEY_SIZE];
   ockam_vault_secret_t s_secret;
-  uint8_t              rs[KEY_SIZE];
-  uint8_t              e[KEY_SIZE];
+  uint8_t              rs[P256_PUBLIC_KEY_SIZE];
+  uint8_t              e[P256_PUBLIC_KEY_SIZE];
   ockam_vault_secret_t e_secret;
-  uint8_t              re[KEY_SIZE];
-  uint8_t              k[KEY_SIZE];
+  uint8_t              re[P256_PUBLIC_KEY_SIZE];
+  uint8_t              k[SYMMETRIC_KEY_SIZE];
   ockam_vault_secret_t k_secret;
-  uint8_t              ck[KEY_SIZE];
+  uint8_t              ck[SYMMETRIC_KEY_SIZE];
   ockam_vault_secret_t ck_secret;
   uint8_t              h[SHA256_SIZE];
   ockam_vault_t*       vault;
 } key_establishment_xx;
 
-void print_uint8_str(uint8_t* p, uint16_t size, char* msg);
-void string_to_hex(uint8_t* hexstring, uint8_t* val, size_t* p_bytes);
+void print_uint8_str(const uint8_t* p, uint16_t size, const char* msg);
+void string_to_hex(const uint8_t* hexstring, uint8_t* val, size_t* p_bytes);
 void mix_hash(key_establishment_xx* p_handshake, uint8_t* p_bytes, uint16_t b_length);
 
 ockam_error_t ockam_key_establish_initiator_xx(void* p_context);
