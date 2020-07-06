@@ -1107,9 +1107,6 @@ ockam_error_t vault_default_ecdh(ockam_vault_t*        vault,
                                secret_ec_ctx->private_key,
                                secret_ec_ctx->private_key_size,
                                secret_ec_ctx->curve);
-
-  // FIXME: for P256 should use only x-coordinate from result
-
   if (ret != 1) {
     error = OCKAM_VAULT_ERROR_ECDH_FAIL;
     goto exit;
