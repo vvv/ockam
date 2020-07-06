@@ -245,9 +245,9 @@ ockam_error_t xx_responder_m3_process(key_establishment_xx* xx, uint8_t* p_m3, s
   // n = 0
   error = hkdf_dh(xx, &xx->ck_secret, &xx->e_secret, xx->rs, sizeof(xx->rs), &xx->ck_secret, &xx->k_secret);
   if (error) goto exit;
-  error = ockam_vault_secret_type_set(xx->vault, &xx->k_secret, OCKAM_VAULT_SECRET_TYPE_AES256_KEY);
+  error = ockam_vault_secret_type_set(xx->vault, &xx->k_secret, OCKAM_VAULT_SECRET_TYPE_AES128_KEY);
   if (error) goto exit;
-  error = ockam_vault_secret_type_set(xx->vault, &xx->ck_secret, OCKAM_VAULT_SECRET_TYPE_AES256_KEY);
+  error = ockam_vault_secret_type_set(xx->vault, &xx->ck_secret, OCKAM_VAULT_SECRET_TYPE_AES128_KEY);
   if (error) goto exit;
 
   xx->nonce = 0;
@@ -289,9 +289,9 @@ ockam_error_t xx_responder_epilogue(key_establishment_xx* xx, ockam_xx_key_t* p_
 
   ockam_memory_copy(gp_ockam_key_memory, &p_key->encrypt_secret, &secrets[0], sizeof(secrets[0]));
   ockam_memory_copy(gp_ockam_key_memory, &p_key->decrypt_secret, &secrets[1], sizeof(secrets[1]));
-  error = ockam_vault_secret_type_set(xx->vault, &p_key->encrypt_secret, OCKAM_VAULT_SECRET_TYPE_AES256_KEY);
+  error = ockam_vault_secret_type_set(xx->vault, &p_key->encrypt_secret, OCKAM_VAULT_SECRET_TYPE_AES128_KEY);
   if (error) goto exit;
-  error = ockam_vault_secret_type_set(xx->vault, &p_key->decrypt_secret, OCKAM_VAULT_SECRET_TYPE_AES256_KEY);
+  error = ockam_vault_secret_type_set(xx->vault, &p_key->decrypt_secret, OCKAM_VAULT_SECRET_TYPE_AES128_KEY);
   if (error) goto exit;
   p_key->encrypt_nonce = 0;
   p_key->decrypt_nonce = 0;

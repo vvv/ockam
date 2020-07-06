@@ -199,9 +199,9 @@ ockam_error_t xx_initiator_m3_make(key_establishment_xx* xx, uint8_t* p_msg, siz
   error = hkdf_dh(xx, &xx->ck_secret, &xx->s_secret, xx->re, sizeof(xx->re), &xx->ck_secret, &xx->k_secret);
   if (error) goto exit;
 
-  error = ockam_vault_secret_type_set(xx->vault, &xx->k_secret, OCKAM_VAULT_SECRET_TYPE_AES256_KEY);
+  error = ockam_vault_secret_type_set(xx->vault, &xx->k_secret, OCKAM_VAULT_SECRET_TYPE_AES128_KEY);
   if (error) goto exit;
-  error = ockam_vault_secret_type_set(xx->vault, &xx->ck_secret, OCKAM_VAULT_SECRET_TYPE_AES256_KEY);
+  error = ockam_vault_secret_type_set(xx->vault, &xx->ck_secret, OCKAM_VAULT_SECRET_TYPE_AES128_KEY);
   if (error) goto exit;
 
   xx->nonce = 0;
@@ -236,7 +236,9 @@ exit:
 ockam_error_t xx_initiator_epilogue(key_establishment_xx* xx, ockam_xx_key_t* p_key)
 {
   ockam_error_t        error = OCKAM_ERROR_NONE;
-  ockam_vault_secret_t secrets[2];
+  ockam_vault_secret_t secrets[2] = {0};
+
+  printf("Epilogue\r\n");
 
   ockam_memory_set(gp_ockam_key_memory, secrets, 0, sizeof(secrets));
   error = ockam_vault_hkdf_sha256(xx->vault, &xx->ck_secret, NULL, 2, secrets);
@@ -245,9 +247,9 @@ ockam_error_t xx_initiator_epilogue(key_establishment_xx* xx, ockam_xx_key_t* p_
   ockam_memory_copy(gp_ockam_key_memory, &p_key->decrypt_secret, &secrets[0], sizeof(secrets[0]));
   ockam_memory_copy(gp_ockam_key_memory, &p_key->encrypt_secret, &secrets[1], sizeof(secrets[1]));
 
-  error = ockam_vault_secret_type_set(xx->vault, &p_key->decrypt_secret, OCKAM_VAULT_SECRET_TYPE_AES256_KEY);
+  error = ockam_vault_secret_type_set(xx->vault, &p_key->decrypt_secret, OCKAM_VAULT_SECRET_TYPE_AES128_KEY);
   if (error) goto exit;
-  error = ockam_vault_secret_type_set(xx->vault, &p_key->encrypt_secret, OCKAM_VAULT_SECRET_TYPE_AES256_KEY);
+  error = ockam_vault_secret_type_set(xx->vault, &p_key->encrypt_secret, OCKAM_VAULT_SECRET_TYPE_AES128_KEY);
   if (error) goto exit;
 
   xx->nonce            = 0;
