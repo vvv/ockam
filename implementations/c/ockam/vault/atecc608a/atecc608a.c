@@ -260,7 +260,7 @@ ockam_error_t ockam_vault_atecc608a_init(ockam_vault_t* vault, ockam_vault_atecc
 
   context->memory = attributes->memory;
 
-  if((attributes->io_protection->key == 0) ||
+  if((attributes->io_protection->key_size == 0) ||
      (attributes->io_protection->slot > VAULT_ATECC608A_NUM_SLOTS) ||
      (attributes->io_protection->key_size > g_vault_atecc608a_slot_size[attributes->io_protection->slot])) {
     error = OCKAM_VAULT_ERROR_INVALID_ATTRIBUTES;
@@ -363,7 +363,7 @@ ockam_error_t ockam_vault_atecc608a_init(ockam_vault_t* vault, ockam_vault_atecc
 
 
   vault->dispatch = &vault_atecc608a_dispatch_table;
-  vault->impl_context  = context;
+  vault->context  = context;
 
 exit:
   return error;
@@ -381,19 +381,19 @@ ockam_error_t vault_atecc608a_deinit(ockam_vault_t* vault)
   ATCA_STATUS                status  = ATCA_SUCCESS;
   vault_atecc608a_context_t* context = 0;
 
-  if ((vault == 0) || (vault->impl_context == 0)) {
+  if ((vault == 0) || (vault->context == 0)) {
     error = OCKAM_VAULT_ERROR_INVALID_CONTEXT;
     goto exit;
   }
 
-  context = (vault_atecc608a_context_t*) vault->impl_context;
+  context = (vault_atecc608a_context_t*) vault->context;
 
   ockam_mutex_destroy(context->mutex, context->lock);
 
   error = ockam_memory_free(context->memory, context, sizeof(vault_atecc608a_context_t));
 
   vault->dispatch = 0;
-  vault->impl_context  = 0;
+  vault->context  = 0;
 
 exit:
   return error;
@@ -412,12 +412,12 @@ ockam_error_t vault_atecc608a_random(ockam_vault_t* vault, uint8_t* buffer, size
   ATCA_STATUS                status     = ATCA_SUCCESS;
   vault_atecc608a_context_t* context    = 0;
 
-  if ((vault == 0) || (vault->impl_context == 0)) {
+  if ((vault == 0) || (vault->context == 0)) {
     error = OCKAM_VAULT_ERROR_INVALID_CONTEXT;
     goto exit;
   }
 
-  context = (vault_atecc608a_context_t*) vault->impl_context;
+  context = (vault_atecc608a_context_t*) vault->context;
 
   if(buffer == 0) {
     error = OCKAM_VAULT_ERROR_INVALID_PARAM;
@@ -471,12 +471,12 @@ ockam_error_t vault_atecc608a_sha256(ockam_vault_t* vault,
   ATCA_STATUS                status     = ATCA_SUCCESS;
   vault_atecc608a_context_t* context    = 0;
 
-  if ((vault == 0) || (vault->impl_context == 0)) {
+  if ((vault == 0) || (vault->context == 0)) {
     error = OCKAM_VAULT_ERROR_INVALID_CONTEXT;
     goto exit;
   }
 
-  context = (vault_atecc608a_context_t*) vault->impl_context;
+  context = (vault_atecc608a_context_t*) vault->context;
 
   if(digest == 0) {
     error = OCKAM_VAULT_ERROR_INVALID_PARAM;
@@ -532,12 +532,12 @@ ockam_error_t vault_atecc608a_secret_generate(ockam_vault_t*                    
   uint8_t                           rand[VAULT_ATECC608A_RAND_SIZE] = {0};
   uint8_t                           slot                            = 0;
 
-  if ((vault == 0) || (vault->impl_context == 0)) {
+  if ((vault == 0) || (vault->context == 0)) {
     error = OCKAM_VAULT_ERROR_INVALID_CONTEXT;
     goto exit;
   }
 
-  context = (vault_atecc608a_context_t*) vault->impl_context;
+  context = (vault_atecc608a_context_t*) vault->context;
 
   if(secret == 0) {
     error = OCKAM_VAULT_ERROR_INVALID_SECRET;
@@ -640,12 +640,12 @@ ockam_error_t vault_atecc608a_secret_import(ockam_vault_t*                      
   uint8_t*                          buffer                           = 0;
   uint8_t                           nonce[VAULT_ATECC608A_RAND_SIZE] = {0};
 
-  if ((vault == 0) || (vault->impl_context == 0)) {
+  if ((vault == 0) || (vault->context == 0)) {
     error = OCKAM_VAULT_ERROR_INVALID_CONTEXT;
     goto exit;
   }
 
-  context = (vault_atecc608a_context_t*) vault->impl_context;
+  context = (vault_atecc608a_context_t*) vault->context;
 
   if((secret == 0) || (secret->context != 0) || (attributes == 0)) {
     error = OCKAM_VAULT_ERROR_INVALID_CONTEXT;
@@ -776,12 +776,12 @@ ockam_error_t vault_atecc608a_secret_export(ockam_vault_t*        vault,
   ATCA_STATUS                       status      = ATCA_SUCCESS;
   uint8_t*                          buffer      = 0;
 
-  if ((vault == 0) || (vault->impl_context == 0)) {
+  if ((vault == 0) || (vault->context == 0)) {
     error = OCKAM_VAULT_ERROR_INVALID_CONTEXT;
     goto exit;
   }
 
-  context = (vault_atecc608a_context_t*) vault->impl_context;
+  context = (vault_atecc608a_context_t*) vault->context;
 
   if((secret == 0) || (secret->context == 0)) {
     error = OCKAM_VAULT_ERROR_INVALID_CONTEXT;
@@ -854,12 +854,12 @@ ockam_error_t vault_atecc608a_secret_attributes_get(ockam_vault_t*              
     goto exit;
   }
 
-  if (vault->impl_context == 0) {
+  if (vault->context == 0) {
     error = OCKAM_VAULT_ERROR_INVALID_CONTEXT;
     goto exit;
   }
 
-  context = (vault_atecc608a_context_t*) vault->impl_context;
+  context = (vault_atecc608a_context_t*) vault->context;
 
   error = ockam_memory_copy(context->memory,
                             attributes,
@@ -947,12 +947,12 @@ ockam_error_t vault_atecc608a_secret_publickey_get(ockam_vault_t*        vault,
   uint8_t                           slot                            = 0;
   uint8_t*                          output                          = 0;
 
-  if ((vault == 0) || (vault->impl_context == 0)) {
+  if ((vault == 0) || (vault->context == 0)) {
     error = OCKAM_VAULT_ERROR_INVALID_CONTEXT;
     goto exit;
   }
 
-  context = (vault_atecc608a_context_t*) vault->impl_context;
+  context = (vault_atecc608a_context_t*) vault->context;
 
   if(secret == 0) {
     error = OCKAM_VAULT_ERROR_INVALID_SECRET;
@@ -1020,12 +1020,12 @@ ockam_error_t vault_atecc608a_ecdh(ockam_vault_t*        vault,
   vault_atecc608a_secret_context_t* privatekey_ctx                  = 0;
   vault_atecc608a_secret_context_t* shared_secret_ctx               = 0;
 
-  if ((vault == 0) || (vault->impl_context == 0)) {
+  if ((vault == 0) || (vault->context == 0)) {
     error = OCKAM_VAULT_ERROR_INVALID_CONTEXT;
     goto exit;
   }
 
-  context = (vault_atecc608a_context_t*) vault->impl_context;
+  context = (vault_atecc608a_context_t*) vault->context;
 
   if((privatekey == 0) ||
      (privatekey->attributes.type != OCKAM_VAULT_SECRET_TYPE_P256_PRIVATEKEY) ||
@@ -1092,6 +1092,7 @@ ockam_error_t vault_atecc608a_ecdh(ockam_vault_t*        vault,
     goto exit;
   }
 
+  // Only x,y coordinates of public key go here, 64 bytes
   status = atcab_ecdh(privatekey_ctx->slot, peer_publickey+1, shared_secret_ctx->buffer);
   if (status != ATCA_SUCCESS) {
     error = OCKAM_VAULT_ERROR_ECDH_FAIL;
@@ -1143,12 +1144,12 @@ ockam_error_t vault_atecc608a_hkdf_sha256(ockam_vault_t*        vault,
   uint8_t*                          ikm_buffer                          = 0;
   size_t                            ikm_size                            = 0;
 
-  if ((vault == 0) || (vault->impl_context == 0)) {
+  if ((vault == 0) || (vault->context == 0)) {
     error = OCKAM_VAULT_ERROR_INVALID_CONTEXT;
     goto exit;
   }
 
-  context = (vault_atecc608a_context_t*) vault->impl_context;
+  context = (vault_atecc608a_context_t*) vault->context;
 
   if(salt == 0) {
     error = OCKAM_VAULT_ERROR_INVALID_PARAM;
@@ -1457,12 +1458,12 @@ ockam_error_t atecc608a_aead_aes_gcm(ockam_vault_t*        vault,
   uint8_t                           slot                                        = 0;
   uint8_t                           tmpkey[VAULT_ATECC608A_SLOT_WRITE_SIZE_MAX] = {0};
 
-  if ((vault == 0) || (vault->impl_context == 0)) {
+  if ((vault == 0) || (vault->context == 0)) {
     error = OCKAM_VAULT_ERROR_INVALID_CONTEXT;
     goto exit;
   }
 
-  context = (vault_atecc608a_context_t*) vault->impl_context;
+  context = (vault_atecc608a_context_t*) vault->context;
 
   if (encrypt) {
     if (output_size < (input_length + OCKAM_VAULT_AEAD_AES_GCM_TAG_LENGTH)) {
@@ -1495,6 +1496,10 @@ ockam_error_t atecc608a_aead_aes_gcm(ockam_vault_t*        vault,
                                 &tmpkey[0],
                                 key_ctx->buffer,
                                 OCKAM_VAULT_AES128_KEY_LENGTH);
+
+      if (error != OCKAM_ERROR_NONE) {
+          goto exit;
+      }
 
       status = atcab_write_bytes_zone(ATCA_ZONE_DATA,
                                       slot,
