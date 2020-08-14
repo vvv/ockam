@@ -7,6 +7,7 @@
 #include "ockam/mutex.h"
 #include "ockam/vault.h"
 #include "ockam/vault/impl.h"
+#include "ockam/log.h"
 
 #include "atecc608a.h"
 
@@ -104,11 +105,34 @@ typedef struct {
   vault_atecc608a_slot_cfg_t            slot_config[VAULT_ATECC608A_NUM_SLOTS];
 } vault_atecc608a_context_t;
 
+typedef enum {
+    VAULT_ATECC608A_RAM = -1,
+    VAULT_ATECC608A_SLOT0 = 0,
+    VAULT_ATECC608A_SLOT1,
+    VAULT_ATECC608A_SLOT2,
+    VAULT_ATECC608A_SLOT3,
+    VAULT_ATECC608A_SLOT4,
+    VAULT_ATECC608A_SLOT5,
+    VAULT_ATECC608A_SLOT6,
+    VAULT_ATECC608A_SLOT7,
+    VAULT_ATECC608A_SLOT8,
+    VAULT_ATECC608A_SLOT9,
+    VAULT_ATECC608A_SLOT10,
+    VAULT_ATECC608A_SLOT11,
+    VAULT_ATECC608A_SLOT12,
+    VAULT_ATECC608A_SLOT13,
+    VAULT_ATECC608A_SLOT14,
+    VAULT_ATECC608A_SLOT15,
+    VAULT_ATECC608A_SLOT_TEMP_KEY = 32,
+    VAULT_ATECC608A_SLOT_ALT_KEY = 33,
+    VAULT_ATECC608A_SLOT_MSG_DIGEST = 34,
+} vault_atecc608a_slot_t;
+
 /**
  * @brief Context data for the ATECC608A secrets
  */
 typedef struct {
-  uint16_t slot;
+    vault_atecc608a_slot_t slot;
   uint8_t *buffer;
   size_t buffer_size;
 } vault_atecc608a_secret_context_t;
@@ -1060,14 +1084,6 @@ ockam_error_t vault_atecc608a_ecdh(ockam_vault_t*        vault,
     goto exit;
   }
 
-  error = ockam_memory_alloc_zeroed(context->memory,
-                                    (void**) &(shared_secret_ctx->buffer),
-                                    OCKAM_VAULT_SHARED_SECRET_LENGTH);
-  if(error != OCKAM_ERROR_NONE) {
-    goto exit;
-  }
-
-  shared_secret_ctx->buffer_size   = OCKAM_VAULT_SHARED_SECRET_LENGTH;
   shared_secret->attributes.length = OCKAM_VAULT_SHARED_SECRET_LENGTH;
   shared_secret->attributes.type   = OCKAM_VAULT_SECRET_TYPE_BUFFER;
 
@@ -1078,8 +1094,8 @@ ockam_error_t vault_atecc608a_ecdh(ockam_vault_t*        vault,
     }
   }
 
-  // TODO expand public key if compressed
-
+  // TODO: expand public key if compressed
+  // TODO: why?
   status = atcab_random(&rand[0]);
   if (status != ATCA_SUCCESS) {
     error = OCKAM_VAULT_ERROR_ECDH_FAIL;
@@ -1092,13 +1108,16 @@ ockam_error_t vault_atecc608a_ecdh(ockam_vault_t*        vault,
     goto exit;
   }
 
+  ockam_log_info("Running ECDH");
   // Only x,y coordinates of public key go here, 64 bytes
-  status = atcab_ecdh(privatekey_ctx->slot, peer_publickey+1, shared_secret_ctx->buffer);
+  status = atcab_ecdh_base(ECDH_MODE_COPY_TEMP_KEY, privatekey_ctx->slot, peer_publickey+1, NULL, NULL);
   if (status != ATCA_SUCCESS) {
     error = OCKAM_VAULT_ERROR_ECDH_FAIL;
+      ockam_log_error("ECDH error: %d", status);
     goto exit;
   }
 
+  shared_secret_ctx->slot = VAULT_ATECC608A_SLOT_TEMP_KEY;
   shared_secret->context = shared_secret_ctx;
 
 exit:
@@ -1160,8 +1179,11 @@ ockam_error_t vault_atecc608a_hkdf_sha256(ockam_vault_t*        vault,
 
   if(input_key_material) {
     ikm_ctx  = (vault_atecc608a_secret_context_t*) input_key_material->context;
-    ikm_buffer = ikm_ctx->buffer;
-    ikm_size = input_key_material->attributes.length;
+    if (ikm_ctx->slot != VAULT_ATECC608A_SLOT_TEMP_KEY) {
+        ockam_log_error("ikm is not in temp key slot");
+        error = OCKAM_VAULT_ERROR_INVALID_PARAM;
+        goto exit;
+    }
   }
 
   if(context->mutex) {

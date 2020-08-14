@@ -188,10 +188,12 @@ ockam_error_t xx_test_initiator(ockam_vault_t* p_vault, ockam_memory_t* p_memory
   error = establish_initiator_transport(&transport, p_memory, ip_address, &p_reader, &p_writer);
   if (error) goto exit;
 
-  printf("Initiator connected\n");
+  ockam_log_info("Initiator connected");
 
   error = ockam_xx_key_initialize(&key, p_memory, p_vault, p_reader, p_writer);
   if (error) goto exit;
+
+    ockam_log_info("Initiator key agreement initialized");
 
   if (scripted_xx) {
     error = test_initiator_handshake(&key);
@@ -200,17 +202,23 @@ ockam_error_t xx_test_initiator(ockam_vault_t* p_vault, ockam_memory_t* p_memory
   }
   if (error) goto exit;
 
+    ockam_log_info("Initiator key agreement initiated");
+
   /*-------------------------------------------------------------------------
    * Receive the test message
    *-----------------------------------------------------------------------*/
   error = ockam_read(p_reader, read_buffer, sizeof(read_buffer), &bytes_received);
   if (error) goto exit;
 
+    ockam_log_info("Initiator test message received");
+
   /*-------------------------------------------------------------------------
    * Confirm the test message
    *-----------------------------------------------------------------------*/
   error = ockam_key_decrypt(&key, test, TEST_MSG_CIPHER_SIZE, read_buffer, bytes_received, &test_bytes);
   if (error) goto exit;
+
+    ockam_log_info("Initiator test message decrypted");
 
   if (scripted_xx) {
     string_to_hex((uint8_t*) TEST_MSG_RESPONDER, test_responder, NULL);
@@ -251,6 +259,7 @@ ockam_error_t xx_test_initiator(ockam_vault_t* p_vault, ockam_memory_t* p_memory
     ockam_log_error("ockam_SendBlocking failed on test message: %x", error);
     goto exit;
   }
+    ockam_log_info("Initiator test message sent");
 
 exit:
   if (error) ockam_log_error("%x", error);

@@ -190,10 +190,12 @@ ockam_error_t xx_test_responder(ockam_vault_t* p_vault, ockam_memory_t* p_memory
   error = establish_responder_connection(&transport, p_memory, ip_address, &p_reader, &p_writer);
   if (error) goto exit;
 
-  printf("Responder connected\n");
+  ockam_log_info("Responder connected");
 
   error = ockam_xx_key_initialize(&key, p_memory, p_vault, p_reader, p_writer);
   if (error) goto exit;
+
+  ockam_log_info("Responder key agreement initialized");
 
   /*-------------------------------------------------------------------------
    * Perform the secret xx
@@ -209,6 +211,8 @@ ockam_error_t xx_test_responder(ockam_vault_t* p_vault, ockam_memory_t* p_memory
     ockam_log_error("ockam_responder_handshake: %x", error);
     goto exit;
   }
+
+  ockam_log_info("Responder key agreement responded");
 
   /*-------------------------------------------------------------------------
    * Verify secure channel by sending and receiving a known message
@@ -233,19 +237,27 @@ ockam_error_t xx_test_responder(ockam_vault_t* p_vault, ockam_memory_t* p_memory
     }
   }
 
+  ockam_log_info("Responder test message encrypted");
+
   /* Send test message */
   error = ockam_write(p_writer, write_buffer, transmit_size);
   if (error) goto exit;
+
+  ockam_log_info("Responder test message sent");
 
   /* Receive test message  */
   memset(read_buffer, 0, sizeof(read_buffer));
   error = ockam_read(p_reader, read_buffer, MAX_XX_TRANSMIT_SIZE, &transmit_size);
   if (error) goto exit;
 
+  ockam_log_info("Responder test message receiver");
+
   /* Decrypt test message */
 
   error = ockam_key_decrypt(&key, test, TEST_MSG_BYTE_SIZE, read_buffer, transmit_size, &test_size);
   if (error) goto exit;
+
+  ockam_log_info("Responder test message decrypted");
 
   /* Verify test message */
   if (scripted_xx) {
@@ -264,6 +276,5 @@ ockam_error_t xx_test_responder(ockam_vault_t* p_vault, ockam_memory_t* p_memory
 exit:
   if (error) ockam_log_error("%x", error);
   ockam_transport_deinit(&transport);
-  printf("Test ended with error %0.4x\n", error);
   return error;
 }

@@ -1,5 +1,4 @@
 #include <string.h>
-#include <stdio.h>
 
 #include "ockam/error.h"
 #include "ockam/key_agreement/impl.h"
@@ -71,6 +70,7 @@ exit:
 ockam_error_t
 xx_initiator_m1_make(key_establishment_xx* xx, uint8_t* p_send_buffer, size_t buffer_size, size_t* p_transmit_size)
 {
+    // FIXME: check buffer_size
   ockam_error_t error  = OCKAM_ERROR_NONE;
   uint16_t      offset = 0;
 
@@ -237,8 +237,6 @@ ockam_error_t xx_initiator_epilogue(key_establishment_xx* xx, ockam_xx_key_t* p_
 {
   ockam_error_t        error = OCKAM_ERROR_NONE;
   ockam_vault_secret_t secrets[2] = {0};
-
-  printf("Epilogue\r\n");
 
   ockam_memory_set(gp_ockam_key_memory, secrets, 0, sizeof(secrets));
   error = ockam_vault_hkdf_sha256(xx->vault, &xx->ck_secret, NULL, 2, secrets);
