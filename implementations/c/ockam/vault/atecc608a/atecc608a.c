@@ -676,6 +676,11 @@ ockam_error_t vault_atecc608a_secret_import(ockam_vault_t*                      
     goto exit;
   }
 
+  if (attributes->type != OCKAM_VAULT_SECRET_TYPE_CHAIN_KEY || input_length != 32) { // FIXME
+    error = OCKAM_VAULT_ERROR_INVALID_PARAM;
+    goto exit;
+  }
+
   if((attributes->type == OCKAM_VAULT_SECRET_TYPE_P256_PRIVATEKEY) ||       //TODO change this when configured to allow
      (attributes->type == OCKAM_VAULT_SECRET_TYPE_CURVE25519_PRIVATEKEY) || // private key import for testing
      (attributes->type == OCKAM_VAULT_SECRET_TYPE_AES256_KEY)) {
@@ -716,9 +721,7 @@ ockam_error_t vault_atecc608a_secret_import(ockam_vault_t*                      
     ockam_memory_copy(context->memory, &(secret->attributes), attributes, sizeof(ockam_vault_secret_attributes_t));
     secret->attributes.length = input_length;
   }
-
   else if(attributes->type == OCKAM_VAULT_SECRET_TYPE_P256_PRIVATEKEY) {
-
     if(input_length != OCKAM_VAULT_P256_PRIVATEKEY_LENGTH) {
       error = OCKAM_VAULT_ERROR_INVALID_SIZE;
       goto exit;
@@ -755,6 +758,17 @@ ockam_error_t vault_atecc608a_secret_import(ockam_vault_t*                      
     }
 
     ockam_memory_copy(context->memory, &(secret->attributes), attributes, sizeof(ockam_vault_secret_attributes_t));
+  }
+  else if (attributes->type == OCKAM_VAULT_SECRET_TYPE_CHAIN_KEY) {
+
+    status = atcab_nonce_load(NONCE_MODE_TARGET_ALTKEYBUF, input, input_length);
+    if(status != ATCA_SUCCESS) {
+      error = OCKAM_VAULT_ERROR_SECRET_IMPORT_FAIL;
+      goto exit;
+    }
+
+    ockam_memory_copy(context->memory, &(secret->attributes), attributes, sizeof(ockam_vault_secret_attributes_t));
+    slot = VAULT_ATECC608A_SLOT_ALT_KEY;
   }
 
   secret->context = secret_ctx;
@@ -1177,6 +1191,12 @@ ockam_error_t vault_atecc608a_hkdf_sha256(ockam_vault_t*        vault,
 
   salt_ctx = (vault_atecc608a_secret_context_t*) salt->context;
 
+  if (salt_ctx->slot != VAULT_ATECC608A_SLOT_ALT_KEY) {
+    ockam_log_error("salt is not in alt key slot");
+    error = OCKAM_VAULT_ERROR_INVALID_PARAM;
+    goto exit;
+  }
+
   if(input_key_material) {
     ikm_ctx  = (vault_atecc608a_secret_context_t*) input_key_material->context;
     if (ikm_ctx->slot != VAULT_ATECC608A_SLOT_TEMP_KEY) {
@@ -1193,20 +1213,45 @@ ockam_error_t vault_atecc608a_hkdf_sha256(ockam_vault_t*        vault,
     }
   }
 
-  error = atecc608a_hkdf_extract(context,
-                                 salt_ctx->buffer,
-                                 salt->attributes.length,
-                                 ikm_buffer,
-                                 ikm_size,
-                                 &prk_slot);
-  if(error != OCKAM_ERROR_NONE) {
+  uint8_t zero[32];
+  ockam_memory_set(context->memory, zero, 0, 32);
+
+  uint8_t one[32];
+  ockam_memory_set(context->memory, one, 1, 32);
+
+  atcab_nonce(one);
+
+  uint8_t buffer1[32];
+  status = atcab_kdf(KDF_MODE_ALG_HKDF | KDF_MODE_TARGET_ALTKEYBUF | KDF_MODE_SOURCE_ALTKEYBUF, 0, KDF_DETAILS_HKDF_MSG_LOC_TEMPKEY | (32u << 24u), zero, buffer1, NULL);
+  if (status != ATCA_SUCCESS) {
+    error = OCKAM_VAULT_ERROR_HKDF_SHA256_FAIL;
+    ockam_log_error("HKDF error: %d", status);
     goto exit;
   }
 
-  error = atecc608a_hkdf_expand(context,         /* Expand stage of HKDF. Uses the PRK from extract    */
-                                derived_outputs, /* and outputs the key at the desired output size.    */
-                                derived_outputs_count,
-                                prk_slot);
+  uint8_t buffer2[32];
+  status = atcab_kdf(KDF_MODE_ALG_HKDF | KDF_MODE_TARGET_OUTPUT | KDF_MODE_SOURCE_ALTKEYBUF, 0, 0x01, buffer2, buffer2, NULL);
+  if (status != ATCA_SUCCESS) {
+    error = OCKAM_VAULT_ERROR_HKDF_SHA256_FAIL;
+    ockam_log_error("HKDF error: %d", status);
+    goto exit;
+  }
+// TODO
+
+//  error = atecc608a_hkdf_extract(context,
+//                                 salt_ctx->buffer,
+//                                 salt->attributes.length,
+//                                 ikm_buffer,
+//                                 ikm_size,
+//                                 &prk_slot);
+//  if(error != OCKAM_ERROR_NONE) {
+//    goto exit;
+//  }
+//
+//  error = atecc608a_hkdf_expand(context,         /* Expand stage of HKDF. Uses the PRK from extract    */
+//                                derived_outputs, /* and outputs the key at the desired output size.    */
+//                                derived_outputs_count,
+//                                prk_slot);
 
 exit:
 
