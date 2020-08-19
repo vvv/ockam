@@ -11,7 +11,7 @@ endif()
 # ---
 # codec_tests
 # ---
-add_executable(codec_tests
+add_executable(ockam_codec_tests
 	codec.c
 	variable_length_encoded_u2le_test.c
 	payload_aead_aes_gcm_test.c
@@ -25,11 +25,11 @@ add_executable(codec_tests
 )
 
 target_link_libraries(
-  codec_tests
+	ockam_codec_tests
   PRIVATE
 	cmocka-static
     ockam::log
     ockam::codec
 )
 
-add_test(codec_tests codec_tests)
+add_test(ockam_codec_tests ockam_codec_tests)

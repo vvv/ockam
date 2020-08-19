@@ -23,19 +23,19 @@ int _test_codec_payload_setup(void** state)
 
   test_payload = malloc(CODEC_MAX_VLU2_SIZE);
   if (NULL == test_payload) {
-    status = OCKAM_ERROR_INTERFACE_CODEC;
+    status = -1;
     goto exit_block;
   }
 
   end_payload = malloc(CODEC_MAX_VLU2_SIZE);
   if (NULL == end_payload) {
-    status = OCKAM_ERROR_INTERFACE_CODEC;
+    status = -1;
     goto exit_block;
   }
 
   encoded_payload = malloc(0xffffu);
   if (NULL == encoded_payload) {
-    status = OCKAM_ERROR_INTERFACE_CODEC;
+    status = -1;
     goto exit_block;
   }
 

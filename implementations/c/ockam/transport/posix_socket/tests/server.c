@@ -7,9 +7,9 @@
 #include "ockam/memory.h"
 #include "server.h"
 
-int run_test_server(test_cli_params_t* p_params)
+ockam_error_t run_test_server(test_cli_params_t* p_params)
 {
-  ockam_error_t error = OCKAM_ERROR_NONE;
+  ockam_error_t error = ockam_transport_posix_socket_error_none;
 
   ockam_transport_t                   transport;
   ockam_transport_socket_attributes_t transport_attributes;
@@ -29,16 +29,16 @@ int run_test_server(test_cli_params_t* p_params)
     ockam_log_info("Running UDP Server Init");
     error = ockam_transport_socket_udp_init(&transport, &transport_attributes);
   }
-  if (error) goto exit;
+  if (ockam_error_has_error(&error)) goto exit;
 
   ockam_log_info("Running Server Accept");
   error = ockam_transport_accept(&transport, &p_transport_reader, &p_transport_writer, &remote_address);
-  if (0 != error) goto exit;
+  if (ockam_error_has_error(&error)) goto exit;
   ockam_log_info("Server Accept Finished");
 
   FILE* p_file_to_receive;
   error = open_files_for_server_receive(p_params->fixture_path, &p_file_to_receive);
-  if (error) goto exit;
+  if (ockam_error_has_error(&error)) goto exit;
 
   while (true) {
     size_t bytes_received = 0;
@@ -46,7 +46,9 @@ int run_test_server(test_cli_params_t* p_params)
     ockam_log_debug("Server loop read start");
     error = ockam_read(p_transport_reader, receive_buffer, sizeof(receive_buffer), &bytes_received);
     ockam_log_debug("Server loop read finish");
-    if ((error) && (TRANSPORT_ERROR_MORE_DATA != error)) {
+    if (ockam_error_has_error(&error)
+        && !(OCKAM_TRANSPORT_POSIX_SOCKET_ERROR_MORE_DATA == error.code
+             && OCKAM_TRANSPORT_POSIX_SOCKET_ERROR_DOMAIN == error.domain)) {
       ockam_log_error("%s", "Receive failed");
       goto exit;
     }
@@ -59,7 +61,7 @@ int run_test_server(test_cli_params_t* p_params)
       size_t bytes_written = fwrite(receive_buffer, 1, bytes_received, p_file_to_receive);
       if (bytes_written != bytes_received) {
         ockam_log_error("%s", "failed write to output file");
-        error = TRANSPORT_ERROR_TEST;
+        error.code = -1;
         goto exit;
       }
     }
@@ -71,7 +73,7 @@ int run_test_server(test_cli_params_t* p_params)
 
   FILE* p_file_to_send;
   error = open_files_for_server_send(p_params->fixture_path, &p_file_to_send);
-  if (error) goto exit;
+  if (ockam_error_has_error(&error)) goto exit;
 
   int i = 0;
 
@@ -93,7 +95,7 @@ int run_test_server(test_cli_params_t* p_params)
 
     ockam_log_debug("Server loop write start");
     error = ockam_write(p_transport_writer, &send_buffer[0], send_length);
-    if (TRANSPORT_ERROR_NONE != error) {
+    if (ockam_error_has_error(&error)) {
       ockam_log_error("%s", "Send failed");
       goto exit;
     }
@@ -104,7 +106,7 @@ int run_test_server(test_cli_params_t* p_params)
 
   // Send special "the end" buffer
   error = ockam_write(p_transport_writer, (uint8_t*) ENDING_LINE, strlen(ENDING_LINE) + 1);
-  if (TRANSPORT_ERROR_NONE != error) {
+  if (ockam_error_has_error(&error)) {
     ockam_log_error("%s", "Send failed");
     goto exit;
   }
@@ -115,11 +117,11 @@ int run_test_server(test_cli_params_t* p_params)
   FILE* p_received_file;
 
   error = open_files_for_server_compare(p_params->fixture_path, &p_sent_file, &p_received_file);
-  if (error) goto exit;
+  if (ockam_error_has_error(&error)) goto exit;
 
   // Now compare the received file and the reference file
-  if (0 != file_compare(&p_params->memory, p_sent_file, p_received_file)) {
-    error = TRANSPORT_ERROR_TEST;
+  error = file_compare(&p_params->memory, p_sent_file, p_received_file);
+  if (ockam_error_has_error(&error)) {
     ockam_log_error("%s", "file compare failed");
     goto exit;
   }
