@@ -1,6 +1,7 @@
 #ifndef HANDSHAKE_LOCAL_H
 #define HANDSHAKE_LOCAL_H
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include "ockam/error.h"
 #include "ockam/io.h"
@@ -34,13 +35,11 @@ typedef struct {
   uint16_t             nonce;
   uint8_t              s[P256_PUBLIC_KEY_SIZE];
   ockam_vault_secret_t s_secret;
-  uint8_t              rs[P256_PUBLIC_KEY_SIZE];
   uint8_t              e[P256_PUBLIC_KEY_SIZE];
   ockam_vault_secret_t e_secret;
+  uint8_t              rs[P256_PUBLIC_KEY_SIZE];
   uint8_t              re[P256_PUBLIC_KEY_SIZE];
-  uint8_t              k[SYMMETRIC_KEY_SIZE];
   ockam_vault_secret_t k_secret;
-  uint8_t              ck[SYMMETRIC_KEY_SIZE];
   ockam_vault_secret_t ck_secret;
   uint8_t              h[SHA256_SIZE];
   ockam_vault_t*       vault;
@@ -76,5 +75,6 @@ ockam_error_t hkdf_dh(key_establishment_xx* xx,
                       uint8_t*              peer_publickey,
                       size_t                peer_publickey_length,
                       ockam_vault_secret_t* secret1,
-                      ockam_vault_secret_t* secret2);
+                      ockam_vault_secret_t* secret2,
+                      bool is_last);
 #endif

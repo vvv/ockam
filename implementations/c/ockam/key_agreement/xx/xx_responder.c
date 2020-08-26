@@ -58,7 +58,10 @@ ockam_error_t ockam_key_establish_responder_xx(void* p_context)
   if (error) goto exit;
 
 exit:
-  if (error) ockam_log_error("%x", error);
+  if (error) {
+    return_error = error;
+    ockam_log_error("%x", error);
+  }
   error = ockam_vault_secret_destroy(xx.vault, &xx.s_secret);
   if (error) {
     ockam_log_error("%x", error);
@@ -131,13 +134,7 @@ ockam_error_t xx_responder_m2_make(key_establishment_xx* xx, uint8_t* p_msg, siz
 
   // 2. ck, k = HKDF(ck, DH(e, re), 2)
   // n = 0
-  error = hkdf_dh(xx, &xx->ck_secret, &xx->e_secret, xx->re, sizeof(xx->re), &xx->ck_secret, &xx->k_secret);
-  if (error) goto exit;
-  error = ockam_vault_secret_type_set(
-    xx->vault, &xx->k_secret, OCKAM_VAULT_SECRET_TYPE_AES128_KEY); //!!Todo: remove these from everywhere
-  if (error) goto exit;
-  error = ockam_vault_secret_type_set(
-    xx->vault, &xx->ck_secret, OCKAM_VAULT_SECRET_TYPE_BUFFER); //!!only do this before using for cryptography
+  error = hkdf_dh(xx, &xx->ck_secret, &xx->e_secret, xx->re, sizeof(xx->re), &xx->ck_secret, &xx->k_secret, false);
   if (error) goto exit;
 
   xx->nonce = 0;
@@ -168,11 +165,7 @@ ockam_error_t xx_responder_m2_make(key_establishment_xx* xx, uint8_t* p_msg, siz
 
   // 4. ck, k = HKDF(ck, DH(s, re), 2)
   // n = 0
-  error = hkdf_dh(xx, &xx->ck_secret, &xx->s_secret, xx->re, sizeof(xx->re), &xx->ck_secret, &xx->k_secret);
-  if (error) goto exit;
-  error = ockam_vault_secret_type_set(xx->vault, &xx->k_secret, OCKAM_VAULT_SECRET_TYPE_AES128_KEY);
-  if (error) goto exit;
-  error = ockam_vault_secret_type_set(xx->vault, &xx->ck_secret, OCKAM_VAULT_SECRET_TYPE_BUFFER);
+  error = hkdf_dh(xx, &xx->ck_secret, &xx->s_secret, xx->re, sizeof(xx->re), &xx->ck_secret, &xx->k_secret, false);
   if (error) goto exit;
 
   xx->nonce = 0;
@@ -243,11 +236,7 @@ ockam_error_t xx_responder_m3_process(key_establishment_xx* xx, uint8_t* p_m3, s
 
   // 2. ck, k = HKDF(ck, DH(e, rs), 2)
   // n = 0
-  error = hkdf_dh(xx, &xx->ck_secret, &xx->e_secret, xx->rs, sizeof(xx->rs), &xx->ck_secret, &xx->k_secret);
-  if (error) goto exit;
-  error = ockam_vault_secret_type_set(xx->vault, &xx->k_secret, OCKAM_VAULT_SECRET_TYPE_AES128_KEY);
-  if (error) goto exit;
-  error = ockam_vault_secret_type_set(xx->vault, &xx->ck_secret, OCKAM_VAULT_SECRET_TYPE_AES128_KEY);
+  error = hkdf_dh(xx, &xx->ck_secret, &xx->e_secret, xx->rs, sizeof(xx->rs), &xx->ck_secret, &xx->k_secret, true);
   if (error) goto exit;
 
   xx->nonce = 0;
@@ -284,6 +273,17 @@ ockam_error_t xx_responder_epilogue(key_establishment_xx* xx, ockam_xx_key_t* p_
   ockam_vault_secret_t secrets[2];
 
   ockam_memory_set(gp_ockam_key_memory, secrets, 0, sizeof(secrets));
+
+  ockam_vault_secret_attributes_t attributes = {
+    .length = SYMMETRIC_KEY_SIZE,
+    .type = OCKAM_VAULT_SECRET_TYPE_AES128_KEY,
+    .purpose = OCKAM_VAULT_SECRET_PURPOSE_KEY_AGREEMENT,
+    .persistence = OCKAM_VAULT_SECRET_EPHEMERAL,
+  };
+
+  secrets[0].attributes = attributes;
+  secrets[1].attributes = attributes;
+
   error = ockam_vault_hkdf_sha256(xx->vault, &xx->ck_secret, NULL, 2, &secrets[0]);
   if (error) goto exit;
 

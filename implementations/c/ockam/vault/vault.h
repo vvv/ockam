@@ -19,6 +19,9 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
+
+void log_bin(const char *str, const uint8_t* bin, size_t size);
 
 #define OCKAM_VAULT_SHARED_SECRET_LENGTH        32u
 #define OCKAM_VAULT_SHA256_DIGEST_LENGTH        32u
@@ -89,6 +92,7 @@ typedef enum {
  */
 typedef enum {
   OCKAM_VAULT_SECRET_PURPOSE_KEY_AGREEMENT = 0,
+  OCKAM_VAULT_SECRET_PURPOSE_EPILOGUE = 1,
 } ockam_vault_secret_purpose_t;
 
 /**

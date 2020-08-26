@@ -486,6 +486,7 @@ ockam_error_t vault_default_secret_import(ockam_vault_t*                        
   case OCKAM_VAULT_SECRET_TYPE_AES128_KEY:
   case OCKAM_VAULT_SECRET_TYPE_AES256_KEY:
   case OCKAM_VAULT_SECRET_TYPE_BUFFER:
+  case OCKAM_VAULT_SECRET_TYPE_CHAIN_KEY:
     error = vault_default_secret_key_create(vault, secret, attributes, 0, input, input_length);
     break;
 
@@ -695,11 +696,12 @@ ockam_error_t vault_default_secret_key_create(ockam_vault_t*                    
     goto exit;
   }
 
-  if ((attributes->purpose != OCKAM_VAULT_SECRET_PURPOSE_KEY_AGREEMENT) ||
-      (attributes->persistence != OCKAM_VAULT_SECRET_EPHEMERAL)) {
-    error = OCKAM_VAULT_ERROR_INVALID_SECRET_ATTRIBUTES;
-    goto exit;
-  }
+  // FIXME
+//  if ((attributes->purpose != OCKAM_VAULT_SECRET_PURPOSE_KEY_AGREEMENT) ||
+//      (attributes->persistence != OCKAM_VAULT_SECRET_EPHEMERAL)) {
+//    error = OCKAM_VAULT_ERROR_INVALID_SECRET_ATTRIBUTES;
+//    goto exit;
+//  }
 
   if (secret->context == 0) {
     error = ockam_memory_alloc_zeroed(ctx->memory, (void**) &secret_ctx, sizeof(vault_default_secret_key_ctx_t));
@@ -751,8 +753,6 @@ exit:
 ockam_error_t vault_default_secret_destroy(ockam_vault_t* vault, ockam_vault_secret_t* secret)
 {
   ockam_error_t                   error          = OCKAM_ERROR_NONE;
-  vault_default_secret_ec_ctx_t*  secret_ec_ctx  = 0;
-  vault_default_secret_key_ctx_t* secret_key_ctx = 0;
 
   if ((vault == 0) || (secret == 0)) {
     error = OCKAM_VAULT_ERROR_INVALID_PARAM;
@@ -768,6 +768,7 @@ ockam_error_t vault_default_secret_destroy(ockam_vault_t* vault, ockam_vault_sec
   case OCKAM_VAULT_SECRET_TYPE_AES128_KEY:
   case OCKAM_VAULT_SECRET_TYPE_AES256_KEY:
   case OCKAM_VAULT_SECRET_TYPE_BUFFER:
+  case OCKAM_VAULT_SECRET_TYPE_CHAIN_KEY:
     error = vault_default_secret_key_destroy(vault, secret);
     break;
 
@@ -844,7 +845,8 @@ ockam_error_t vault_default_secret_key_destroy(ockam_vault_t* vault, ockam_vault
 
   if ((secret->attributes.type != OCKAM_VAULT_SECRET_TYPE_AES128_KEY) &&
       (secret->attributes.type != OCKAM_VAULT_SECRET_TYPE_AES256_KEY) &&
-      (secret->attributes.type != OCKAM_VAULT_SECRET_TYPE_BUFFER)) {
+      (secret->attributes.type != OCKAM_VAULT_SECRET_TYPE_BUFFER) &&
+      (secret->attributes.type != OCKAM_VAULT_SECRET_TYPE_CHAIN_KEY)) {
     error = OCKAM_VAULT_ERROR_INVALID_SECRET_TYPE;
     goto exit;
   }
@@ -1174,7 +1176,8 @@ ockam_error_t vault_default_hkdf_sha256(ockam_vault_t*        vault,
     goto exit;
   }
 
-  if ((salt->attributes.type != OCKAM_VAULT_SECRET_TYPE_BUFFER) &&
+  if ((salt->attributes.type != OCKAM_VAULT_SECRET_TYPE_CHAIN_KEY) &&
+      (salt->attributes.type != OCKAM_VAULT_SECRET_TYPE_BUFFER) &&
       (salt->attributes.type != OCKAM_VAULT_SECRET_TYPE_AES128_KEY) &&
       (salt->attributes.type != OCKAM_VAULT_SECRET_TYPE_AES256_KEY)) {
     error = OCKAM_VAULT_ERROR_INVALID_SECRET_TYPE;
@@ -1214,6 +1217,8 @@ ockam_error_t vault_default_hkdf_sha256(ockam_vault_t*        vault,
 
   br_hkdf_init(br_hkdf_ctx, &br_sha256_vtable, secret_ctx->key, secret_ctx->key_size);
 
+  log_bin("BearSSL salt output", secret_ctx->key, secret_ctx->key_size);
+
   if (input_key_material != 0) {
     if (input_key_material->context == 0) {
       error = OCKAM_VAULT_ERROR_INVALID_CONTEXT;
@@ -1223,20 +1228,16 @@ ockam_error_t vault_default_hkdf_sha256(ockam_vault_t*        vault,
     secret_ctx = (vault_default_secret_key_ctx_t*) input_key_material->context;
 
     br_hkdf_inject(br_hkdf_ctx, secret_ctx->key, secret_ctx->key_size);
+
+    log_bin("BearSSL ikm output", secret_ctx->key, secret_ctx->key_size);
   }
 
   br_hkdf_flip(br_hkdf_ctx);
 
   {
-    uint8_t                         i          = 0;
-    ockam_vault_secret_attributes_t attributes = { .length      = OCKAM_VAULT_SHA256_DIGEST_LENGTH, // FIXME
-                                                   .type        = OCKAM_VAULT_SECRET_TYPE_BUFFER,
-                                                   .purpose     = OCKAM_VAULT_SECRET_PURPOSE_KEY_AGREEMENT,
-                                                   .persistence = OCKAM_VAULT_SECRET_EPHEMERAL };
-
-    for (i = 0; i < derived_outputs_count; i++) {
-      ockam_vault_secret_t* output = derived_outputs;
-      output += i;
+    for (uint8_t i = 0; i < derived_outputs_count; i++) {
+      ockam_vault_secret_t* output = derived_outputs + i;
+      ockam_vault_secret_attributes_t attributes = output->attributes;
 
       if (output == 0) {
         error = OCKAM_VAULT_ERROR_INVALID_CONTEXT;
@@ -1248,7 +1249,18 @@ ockam_error_t vault_default_hkdf_sha256(ockam_vault_t*        vault,
 
       secret_ctx = (vault_default_secret_key_ctx_t*) output->context;
 
-      br_hkdf_produce(br_hkdf_ctx, 0, 0, secret_ctx->key, secret_ctx->key_size);
+      uint8_t output_buffer[OCKAM_VAULT_SHA256_DIGEST_LENGTH];
+      br_hkdf_produce(br_hkdf_ctx, 0, 0, output_buffer, OCKAM_VAULT_SHA256_DIGEST_LENGTH);
+
+      if (secret_ctx->key_size > OCKAM_VAULT_SHA256_DIGEST_LENGTH) {
+        error = OCKAM_VAULT_ERROR_INVALID_CONTEXT;
+        goto exit;
+      }
+
+      error = ockam_memory_copy(ctx->memory, secret_ctx->key, output_buffer, secret_ctx->key_size);
+      if (error) goto exit;
+
+      log_bin("BearSSL output", secret_ctx->key, secret_ctx->key_size);
     }
   }
 

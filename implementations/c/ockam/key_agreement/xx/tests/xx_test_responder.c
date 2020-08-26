@@ -57,7 +57,6 @@ ockam_error_t xx_test_responder_prologue(key_establishment_xx* xx)
 
   // Nonce to 0, k to empty
   xx->nonce = 0;
-  memset(xx->k, 0, sizeof(xx->k));
 
   // 4. Set h and ck to 'Noise_XX_25519_AESGCM_SHA256'
   memset(xx->h, 0, SHA256_SIZE);

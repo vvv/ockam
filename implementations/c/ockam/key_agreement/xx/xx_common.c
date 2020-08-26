@@ -140,7 +140,7 @@ ockam_error_t key_agreement_prologue_xx(key_establishment_xx* xx)
                                                         OCKAM_VAULT_SECRET_PURPOSE_KEY_AGREEMENT,
                                                         OCKAM_VAULT_SECRET_EPHEMERAL };
   size_t                          key_size          = 0;
-  uint8_t                         ck[SYMMETRIC_KEY_SIZE];
+  uint8_t                         ck[32];
 
   // 1. Generate a static 25519 keypair for this handshake and set it to s
   error = ockam_vault_secret_generate(xx->vault, &xx->s_secret, &secret_attributes);
@@ -161,15 +161,14 @@ ockam_error_t key_agreement_prologue_xx(key_establishment_xx* xx)
 
   // 3. Set k to empty, Set n to 0
   xx->nonce = 0;
-  ockam_memory_set(gp_ockam_key_memory, xx->k, 0, SYMMETRIC_KEY_SIZE);
 
   // 4. Set h and ck to 'Noise_XX_25519_AESGCM_SHA256'
   ockam_memory_set(gp_ockam_key_memory, xx->h, 0, SHA256_SIZE);
   ockam_memory_copy(gp_ockam_key_memory, xx->h, PROTOCOL_NAME, PROTOCOL_NAME_SIZE);
-  ockam_memory_set(gp_ockam_key_memory, ck, 0, SYMMETRIC_KEY_SIZE);
+  ockam_memory_set(gp_ockam_key_memory, ck, 0, 32);
   ockam_memory_copy(gp_ockam_key_memory, ck, PROTOCOL_NAME, PROTOCOL_NAME_SIZE);
-  secret_attributes.type = OCKAM_VAULT_SECRET_TYPE_BUFFER;
-  error                  = ockam_vault_secret_import(xx->vault, &xx->ck_secret, &secret_attributes, ck, SYMMETRIC_KEY_SIZE);
+  secret_attributes.type = OCKAM_VAULT_SECRET_TYPE_CHAIN_KEY;
+  error                  = ockam_vault_secret_import(xx->vault, &xx->ck_secret, &secret_attributes, ck, 32);
   if (error) goto exit;
 
   // 5. h = SHA256(h || prologue),
@@ -197,7 +196,8 @@ ockam_error_t hkdf_dh(key_establishment_xx* xx,
                       uint8_t*              peer_publickey,
                       size_t                peer_publickey_length,
                       ockam_vault_secret_t* secret1,
-                      ockam_vault_secret_t* secret2)
+                      ockam_vault_secret_t* secret2,
+                      bool is_last)
 {
   ockam_error_t        error = OCKAM_ERROR_NONE;
   ockam_vault_secret_t shared_secret;
@@ -212,6 +212,20 @@ ockam_error_t hkdf_dh(key_establishment_xx* xx,
     ockam_log_error("failed ockam_vault_ecdh in responder_m2_send: %x", error);
     goto exit;
   }
+
+  ockam_vault_secret_attributes_t attributes = {
+    .length = SHA256_SIZE,
+    .type = OCKAM_VAULT_SECRET_TYPE_CHAIN_KEY,
+    .purpose = is_last ? OCKAM_VAULT_SECRET_PURPOSE_EPILOGUE : OCKAM_VAULT_SECRET_PURPOSE_KEY_AGREEMENT,
+    .persistence = OCKAM_VAULT_SECRET_EPHEMERAL,
+  };
+
+  generated_secrets[0].attributes = attributes;
+
+  attributes.length = SYMMETRIC_KEY_SIZE;
+  attributes.type = OCKAM_VAULT_SECRET_TYPE_AES128_KEY;
+
+  generated_secrets[1].attributes = attributes;
 
   // ck, k = HKDF( ck, shared_secret )
   error = ockam_vault_hkdf_sha256(xx->vault, salt, &shared_secret, 2, generated_secrets);
