@@ -219,18 +219,6 @@ ockam_error_t vault_atecc608a_aead_aes_gcm_decrypt(ockam_vault_t*        vault,
                                                    size_t                plaintext_size,
                                                    size_t*               plaintext_length);
 
-//ockam_error_t atecc608a_hkdf_extract(vault_atecc608a_context_t* context,
-//                                     uint8_t*                   salt,
-//                                     size_t                     salt_length,
-//                                     uint8_t*                   ikm,
-//                                     size_t                     ikm_length,
-//                                     uint16_t*                  prk_slot);
-//
-//ockam_error_t atecc608a_hkdf_expand(vault_atecc608a_context_t* context,
-//                                    ockam_vault_secret_t*      outputs,
-//                                    uint8_t                    outputs_count,
-//                                    uint16_t                   prk_slot);
-
 ockam_error_t atecc608a_aead_aes_gcm(ockam_vault_t*        vault,
                                      int                   encrypt,
                                      ockam_vault_secret_t* key,
@@ -1296,7 +1284,6 @@ ockam_error_t vault_atecc608a_hkdf_sha256(ockam_vault_t*        vault,
     goto exit2;
   }
 
-  log_bin("Expand 2", expand_result2, 16);
 
   vault_atecc608a_slot_t expand_slot1;
 
@@ -1323,6 +1310,8 @@ ockam_error_t vault_atecc608a_hkdf_sha256(ockam_vault_t*        vault,
     ockam_log_error("HKDF first expand write error: %d", status);
     goto exit2;
   }
+
+  log_bin("Expand 2", expand_result2, 16);
 
   vault_atecc608a_secret_context_t** ck_ctx = (vault_atecc608a_secret_context_t**) &derived_outputs[0].context;
   error = ockam_memory_alloc_zeroed(context->memory, (void**) ck_ctx, sizeof(vault_atecc608a_secret_context_t));

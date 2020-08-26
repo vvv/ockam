@@ -10,8 +10,8 @@
 #include "ockam/key_agreement/impl.h"
 #include "ockam/key_agreement.h"
 
-#define PROTOCOL_NAME        "XX_P256_AES"
-#define PROTOCOL_NAME_SIZE   11
+#define PROTOCOL_NAME        "Noise_XX_25519_AESGCM_SHA256"
+#define PROTOCOL_NAME_SIZE   28
 #define MAX_XX_TRANSMIT_SIZE 1028
 #define TAG_SIZE             16
 #define VECTOR_SIZE          12
